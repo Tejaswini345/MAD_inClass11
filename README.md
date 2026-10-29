@@ -1,59 +1,81 @@
-# MAD 4360 – In-Class Activity 10: Flutter Signup Form Quest
+# MAD 4360 – In-Class Activity 11: The Haunted Creature Registry
 
 ## Name
-- Tejaswini Kolliboni (graduate track) - 003037935
+
+- Tejaswini Kolliboni (graduate track) – 003037935
 
 
 ## Track and tasks
+
 - **Track:** Graduate
-- **Task A (required):** Local signup tip simulation
-- **Extension:** Task C – Confirm & Celebrate
+- **Shared build:** Welcome -> Signup -> Success, built from the Activity 10 form
+- **Extension:** Task C – The Guarded Crypt (defensive navigation)
+- **Repository:** https://github.com/Tejaswini345/MAD_inClass11
+- **APK:** `build/app/outputs/flutter-apk/app-debug.apk` (debug build)
 
-## App theme
-"Snack Club" signup screen 
 
-## How the local tip feature works
-- **Fixed category:** `password_help`. This is the only thing that selects a tip.
-- **Preset tips:** Three short tips are stored in a hardcoded list in the app (all under 240 characters).
-- **Selection:** The tip is chosen by `requestCount % number of tips`, so it is deterministic and rotates on each tap.
-- **States:** idle → loading (about 0.9 s simulated delay) → success or error. The error state has a Retry button.
-- **Label:** Every tip is shown with "Preset demo tip—not live AI."
-- **Test mode dropdown:** Normal, Local error, and Missing tip data, so every state can be demonstrated without editing code.
-- **No server, credentials, or live AI service is used.** Nothing in the tip feature makes a network call.
+## How the app works
 
-## Task C
-- A Confirm Password field blocks submission when it doesn't match the password.
-- On success, a green SnackBar shows "Welcome, [entered name]!"
+| File | Role |
+|---|---|
+| `lib/main.dart` | App shell only. `MaterialApp(home: WelcomeScreen())` |
+| `lib/haunted_theme.dart` | Shared palette, `BrutalBox`, `BrutalButton`, input style, creature list |
+| `lib/screens/welcome_screen.dart` | Typewriter title (`animated_text_kit`); `Navigator.push` to the Lab |
+| `lib/screens/signup_screen.dart` | Form, validators, password toggle, birth-date picker, required creature dropdown, loading state; `Navigator.pushReplacement` to the Ballroom |
+| `lib/screens/success_screen.dart` | Receives name and creature through constructor parameters; confetti (`confetti`); guard against empty data |
+
+- **Navigation:** `push()` from Foyer to Lab, so Back returns to the Foyer. `pushReplacement()` from Lab to Ballroom, so Back cannot resubmit the form.
+- **State:** typed values, the visibility toggle, the birth date and the selected creature live in `SignupScreen`'s State and die with that screen. Only the name and creature type are handed forward, by value, as `SuccessScreen(userName, creatureType)`.
+- **Dispose:** all four `TextEditingController`s and the `ConfettiController` are disposed.
+- **Validators kept from Activity 10:** name required, email must contain `@`, password at least 6 characters. Added: birth date required (no future dates), creature type required.
+
+## Task C – The Guarded Crypt
+
+1. **Guard the Ballroom.** `SuccessScreen` checks that `userName` and `creatureType` are not empty (`_hasValidData`). If either is empty it draws no certificate and reroutes to the Foyer with `pushAndRemoveUntil`, using a post-frame callback because navigation cannot run inside `initState`. `SignupScreen` also refuses to navigate with an empty name or null creature.
+2. **Second double-submit guard.** `_inFlight` is a plain bool set synchronously at the top of `_submit()`, so a second call returns immediately even if the button were enabled. The disabled button (`onPressed: null` while `_submitting`) is the first guard.
+3. **Async gap.** After the 2-second `await`, `if (!mounted) return;` runs before any `setState` or navigation.
 
 ## Tests run
-Form and tip tests were run in Android emulator. APK built with `flutter build apk` (release).
+ APK built with `flutter build apk --debug`.
 
 | # | Test | Result |
-|---|------|--------|
-| 1 | All fields empty, tap Sign Up | Four error messages shown – pass |
-| 2 | Email without "@" | Email error – pass |
-| 3 | Password under 6 characters | Length error – pass |
-| 4 | Confirm password differs | "Passwords do not match", no success – pass |
-| 5 | All valid | Green "Welcome, [Name]!" SnackBar – pass |
-| 6 | Normal mode tip | Spinner, then tip with demo label; tapping again changes tip – pass |
-| 7 | Local error mode | Error + Retry shown; Retry fails again; after switching to Normal, Retry recovers – pass |
-| 8 | Missing tip data mode | Same error and retry behavior – pass |
-| 9 | Tip button during loading | Button disabled – pass |
-| 10 | Typing in form fields, then getting a tip | Tip unchanged by form contents – pass |
-| 11 | Getting a tip with empty form, then Sign Up | Validation still blocks signup – pass |
-| 12 | Airplane mode on, then get a tip | Tip loaded and displayed normally – pass |
+|---|---|---|
+| 1 | All fields empty, tap Register Creature | Five error messages shown (name, email, password, birth date, creature) – pass |
+| 2 | Email without "@" | "Email must contain @" – pass |
+| 3 | Password under 6 characters | "At least 6 characters" – pass |
+| 4 | Eye icon | Password switches between dots and letters – pass |
+| 5 | Birth-date picker | Opens at 2000; year list stops at 2026, no future years – pass |
+| 6 | Creature dropdown | All five choices listed (Ghost, Bat, Black Cat, Pumpkin Spirit, Witch) – pass |
+| 7 | Valid submit | "BREWING..." spinner with disabled button, then success screen with name and creature – pass |
 
+## Task C hostile-case table
+
+Temporary edits used for H1, H2 and H4 were reverted after testing.
+
+| # | Hostile case | How to trigger | Expected | Observed |
+|---|---|---|---|---|
+| H1 | Empty name reaches Ballroom | Temporarily pass `userName: ''` in `pushReplacement` | Rerouted to Foyer, no certificate | Pass – returned to the Foyer, no certificate shown |
+| H2 | Missing creature type | Temporarily pass `creatureType: ''` | Rerouted to Foyer, no certificate | Pass – returned to the Foyer, no certificate shown |
+| H3 | Double-tap Register | Tap twice fast on a valid form | One navigation, one Ballroom | Pass – only one success screen appeared |
+| H4 | Double submit with button enabled | Temporarily set `onPressed: _submit` always, tap twice | Second call stops at `_inFlight` | Pass – repeated taps produced one success screen (`_inFlight` blocked the rest) |
+| H5 | Back out during the 2 s load | Tap Register, then press Back | Returns to Foyer, no `setState() called after dispose` error | Pass – returned to the Foyer, no dispose error in the terminal |
+| H6 | Back from the Ballroom | Browser or system Back after success | Does not return to the form | Pass – Back did not return to the form |
 
 ## Contribution
-- Tejaswini: Set up the project, implemented the form, local tip feature, and Task C, chose the theme and color, ran all tests, built the APK, and wrote this README.
 
-## Reflection – Tejaswini Kolliboni (graduate, 3 questions)
 
-**1. Identify one privacy boundary in the local tip feature. What information does it keep out of the feature, and why?**
-The tip feature never receives the name, email, or password. The `_getTip` method calls the tip service with only a tap counter and the test mode, and it never reads the text controllers. This matters because even a local demo should model the habit of not sending personal data to a helper feature, which would be critical if the tips later came from a real AI service. The boundary also keeps the feature simple to audit, since you can verify it by checking that no controller appears in the tip code path. In testing, changing what I typed in the fields did not change the tip.
+- Copied my Activity 10 project into a new folder and added the `animated_text_kit` and `confetti` packages.
+- Organized the app into `lib/screens/` with one file per screen and a small `main.dart`.
+- Built and ran the Welcome, Signup and Success screens, including the creature dropdown, password toggle, birth-date picker, loading state and confetti.
+- Chose Task C (defensive navigation) as my graduate extension.
+- Ran the form tests in Android Studio and took screenshots as evidence.
+- Built the debug APK, created the GitHub repository, and wrote this README and the Word document.
 
-**2. What should the UI do when local tip data is empty or missing? Explain your error and retry behavior.**
-When the tip list is empty, the service throws an error, and the UI moves to the error state instead of showing blank text or crashing. The user sees a red message saying the tip could not be loaded, plus a Retry button that runs the same loading flow again. I tested this with the "Missing tip data" mode: it showed the error, retrying kept failing, and switching back to Normal let Retry recover with a tip. A possible improvement is a more specific message for "no tips available" versus a temporary failure, since retrying cannot fix missing data.
 
-**3. Describe one trade-off in your local design and a practical improvement.**
-The main trade-off is reliability and privacy versus variety. Because tips come from a small fixed list selected by a tap counter, the feature works offline, is fully predictable, and is easy to test, but users see the same three tips repeating and the tips cannot adapt to what the user needs. Another trade-off is that the test-mode dropdown is visible in the UI, which is useful for demonstrating errors but would not belong in a production app. A practical improvement is to add more categories and tips, keeping them stored locally, and hide the test controls behind a debug-only flag.
+## Reflection – Tejaswini Kolliboni (graduate)
+
+**1. push() vs pushReplacement().** The Foyer uses `push()` because a guest may change their mind and walk back out. The Lab uses `pushReplacement()` to reach the Ballroom because going back to a finished form would risk a second submission. The stack after signup is Foyer, Ballroom, so Back from the Ballroom leaves the app rather than reopening the form.
+
+**2. Async gaps.** `_submit()` has a 2-second delay. During that time the guest can leave, so the State can be disposed before the line after the `await` runs. The `mounted` check stops a `setState` or navigation on a dead screen, and `_inFlight` stops a second submission from starting during the wait.
+
+**3. Trade-off and improvement.** Rerouting silently to the Foyer keeps the app safe and simple, but the guest gets no explanation. An improvement is to show a SnackBar on the Foyer explaining that the registration data was incomplete, and to replace the fake delay with a real call that can fail and be retried.
