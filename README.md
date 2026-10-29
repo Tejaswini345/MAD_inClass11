@@ -1,4 +1,4 @@
-# MAD 4360 – In-Class Activity 11: The Haunted Creature Registry
+# In-Class Activity 11: The Haunted Creature Registry
 
 ## Name
 
